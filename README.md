@@ -44,9 +44,14 @@ Progress streams live to the UI via **Server-Sent Events** — no waiting for a 
 
 ## Quick start
 
+**macOS / Linux:**
 ```bash
-# One command — creates venv, installs deps, starts backend + frontend
 ./run.sh
+```
+
+**Windows — use Docker:**
+```bash
+docker-compose up
 ```
 
 Open in browser: **http://localhost:8501**
