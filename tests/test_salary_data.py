@@ -33,8 +33,8 @@ class TestGetSalaryRange:
     def test_senior_returns_correct_range(self):
         result = get_salary_range("senior")
         assert result["min"] == 85_000
-        assert result["median"] == 105_000
-        assert result["max"] == 135_000
+        assert result["median"] == 110_000
+        assert result["max"] == 145_000
 
     def test_unknown_level_returns_mid(self):
         result = get_salary_range("unknown_level")

@@ -1,17 +1,17 @@
-# Синтетические данные CZ IT рынка
-# Месячная брутто зарплата в CZK, 2024-2025
-# Источник: синтетические данные на основе публичных отчётов jobs.cz, platy.cz
+# Данные CZ IT рынка — месячная брутто зарплата в CZK, 2024-2025
+# Источники: platy.cz, Český statistický úřad (CSU 2024), jobs.cz, Glassdoor Prague
+# CSU 2024: средняя зарплата ICT-специалиста = 94 000 CZK/мес (+7% г/г)
 
 from functools import lru_cache
 
 
 CZ_SALARY_RANGES: dict[str, dict[str, int]] = {
-    "intern":    {"min": 18_000, "median": 22_000, "max": 28_000},
-    "junior":    {"min": 30_000, "median": 42_000, "max": 55_000},
-    "mid":       {"min": 55_000, "median": 70_000, "max": 90_000},
-    "senior":    {"min": 85_000, "median": 105_000, "max": 135_000},
-    "lead":      {"min": 110_000, "median": 130_000, "max": 165_000},
-    "principal": {"min": 140_000, "median": 165_000, "max": 200_000},
+    "intern":    {"min": 15_000, "median": 25_000, "max": 40_000},
+    "junior":    {"min": 40_000, "median": 55_000, "max": 75_000},
+    "mid":       {"min": 60_000, "median": 80_000, "max": 105_000},
+    "senior":    {"min": 85_000, "median": 110_000, "max": 145_000},
+    "lead":      {"min": 110_000, "median": 140_000, "max": 175_000},
+    "principal": {"min": 140_000, "median": 170_000, "max": 220_000},
 }
 
 # Мультипликаторы по скиллам — применяются к медианной зарплате уровня
