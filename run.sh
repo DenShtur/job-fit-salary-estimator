@@ -30,10 +30,21 @@ if grep -q "your_anthropic_api_key_here" .env; then
     exit 1
 fi
 
+# ── Виртуальное окружение ─────────────────────────────────────────────────────
+VENV_DIR=".venv"
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo -e "${YELLOW}⟳  Creating virtual environment...${NC}"
+    python3 -m venv "$VENV_DIR"
+fi
+
+# Активируем venv
+source "$VENV_DIR/bin/activate"
+
 # ── Проверка зависимостей ─────────────────────────────────────────────────────
 if ! python3 -c "import fastapi" 2>/dev/null; then
     echo -e "${YELLOW}⟳  Installing dependencies...${NC}"
-    python3 -m pip install -r requirements.txt --quiet
+    pip install -r requirements.txt --quiet
 fi
 
 # ── Cleanup при выходе ────────────────────────────────────────────────────────
@@ -46,7 +57,7 @@ trap cleanup EXIT INT TERM
 
 # ── Запуск backend ────────────────────────────────────────────────────────────
 echo -e "${GREEN}▶  Starting backend  →  http://localhost:8000${NC}"
-python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
     --log-level warning &
 BACKEND_PID=$!
 
@@ -67,7 +78,7 @@ done
 
 # ── Запуск frontend ───────────────────────────────────────────────────────────
 echo -e "${GREEN}▶  Starting frontend →  http://localhost:8501${NC}"
-python3 -m streamlit run frontend/streamlit_app.py \
+streamlit run frontend/streamlit_app.py \
     --server.port 8501 \
     --server.headless true \
     --browser.gatherUsageStats false &
