@@ -31,9 +31,9 @@ if grep -q "your_anthropic_api_key_here" .env; then
 fi
 
 # ── Проверка зависимостей ─────────────────────────────────────────────────────
-if ! python -c "import fastapi" 2>/dev/null; then
+if ! python3 -c "import fastapi" 2>/dev/null; then
     echo -e "${YELLOW}⟳  Installing dependencies...${NC}"
-    pip install -r requirements.txt --quiet
+    python3 -m pip install -r requirements.txt --quiet
 fi
 
 # ── Cleanup при выходе ────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ trap cleanup EXIT INT TERM
 
 # ── Запуск backend ────────────────────────────────────────────────────────────
 echo -e "${GREEN}▶  Starting backend  →  http://localhost:8000${NC}"
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
     --log-level warning &
 BACKEND_PID=$!
 
@@ -67,7 +67,7 @@ done
 
 # ── Запуск frontend ───────────────────────────────────────────────────────────
 echo -e "${GREEN}▶  Starting frontend →  http://localhost:8501${NC}"
-streamlit run frontend/streamlit_app.py \
+python3 -m streamlit run frontend/streamlit_app.py \
     --server.port 8501 \
     --server.headless true \
     --browser.gatherUsageStats false &
