@@ -52,8 +52,9 @@ Progress streams live to the UI via **Server-Sent Events** — no waiting for a 
 Open in browser: **http://localhost:8501**
 API docs: **http://localhost:8000/docs**
 
-> **First time:** copy `.env.example` → `.env` and set your `ANTHROPIC_API_KEY`.
-> The script will tell you if it's missing.
+> **Anthropic API Key — two ways to provide it:**
+> 1. **`.env` file** — copy `.env.example` → `.env` and set `ANTHROPIC_API_KEY=sk-ant-...`
+> 2. **UI sidebar** — paste the key directly in the app, no file needed
 
 ---
 
