@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
 set -e
 
+# Всегда запускаемся из директории скрипта
+cd "$(dirname "$0")"
+
 # ── Цвета ────────────────────────────────────────────────────────────────────
 PURPLE='\033[0;35m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+# ── Режим: ./run.sh test — запустить тесты ───────────────────────────────────
+if [ "${1}" = "test" ]; then
+    echo -e "${PURPLE}◆ Running tests...${NC}"
+    if [ -d ".venv" ]; then
+        .venv/bin/pip install pytest --quiet 2>/dev/null
+        .venv/bin/pytest tests/ -v
+    else
+        python3 -m pip install pytest --quiet
+        python3 -m pytest tests/ -v
+    fi
+    exit 0
+fi
 
 echo -e "${PURPLE}"
 echo "  ◆ Job Fit & Salary Estimator"
@@ -21,14 +37,24 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
-if grep -q "your_anthropic_api_key_here" .env; then
+if grep -q "your-key-here" .env 2>/dev/null; then
     echo -e "${RED}✗  ANTHROPIC_API_KEY is not set in .env${NC}"
-    echo "   Edit .env and replace 'your_anthropic_api_key_here' with your real key"
+    echo "   Edit .env and insert your real Anthropic API key"
     exit 1
 fi
 
+# ── Виртуальное окружение ─────────────────────────────────────────────────────
+VENV_DIR=".venv"
+
+if [ ! -d "$VENV_DIR" ]; then
+    echo -e "${YELLOW}⟳  Creating virtual environment...${NC}"
+    python3 -m venv "$VENV_DIR"
+fi
+
+source "$VENV_DIR/bin/activate"
+
 # ── Проверка зависимостей ─────────────────────────────────────────────────────
-if ! python -c "import fastapi" 2>/dev/null; then
+if ! python3 -c "import fastapi" 2>/dev/null; then
     echo -e "${YELLOW}⟳  Installing dependencies...${NC}"
     pip install -r requirements.txt --quiet
 fi
@@ -75,6 +101,7 @@ echo -e "${PURPLE}  ✓ App is running!${NC}"
 echo -e "  Frontend  →  ${GREEN}http://localhost:8501${NC}"
 echo -e "  API docs  →  ${GREEN}http://localhost:8000/docs${NC}"
 echo -e "  Press ${YELLOW}Ctrl+C${NC} to stop"
+echo -e "  Run tests →  ${YELLOW}./run.sh test${NC}"
 echo ""
 
 # Держим скрипт живым

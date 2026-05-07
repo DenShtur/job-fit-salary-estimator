@@ -332,7 +332,10 @@ if st.session_state.result is None:
                 st.rerun()
 
             except httpx.HTTPStatusError as e:
-                detail = e.response.json().get("detail", str(e))
+                try:
+                    detail = e.response.json().get("detail", str(e))
+                except Exception:
+                    detail = f"HTTP {e.response.status_code}: {e.response.text[:300] or str(e)}"
                 st.session_state.error = f"API Error: {detail}"
                 st.rerun()
             except Exception as e:
@@ -449,21 +452,60 @@ else:
 
         with col_score:
             score = seniority["score"]
+            level = seniority["level"]
+            score_color = "#00D4AA" if score >= 70 else "#FFB347" if score >= 45 else "#6C63FF"
+
+            # Термометр уровней
+            levels = ["intern", "junior", "mid", "senior", "lead", "principal"]
+            level_scores = {"intern": 10, "junior": 30, "mid": 50, "senior": 70, "lead": 85, "principal": 95}
+
+            thermometer_html = '<div style="margin:1.5rem 0">'
+            for lvl in reversed(levels):
+                is_active = lvl == level
+                is_passed = level_scores.get(level, 0) > level_scores.get(lvl, 0)
+                if is_active:
+                    bg = score_color
+                    text_color = "#0F1117"
+                    border = f"2px solid {score_color}"
+                    font_weight = "700"
+                    label_color = score_color
+                elif is_passed:
+                    bg = score_color + "33"
+                    text_color = score_color
+                    border = f"1px solid {score_color}55"
+                    font_weight = "400"
+                    label_color = "#718096"
+                else:
+                    bg = "#1E2535"
+                    text_color = "#4A5568"
+                    border = "1px solid #2D3748"
+                    font_weight = "400"
+                    label_color = "#4A5568"
+
+                thermometer_html += (
+                    f'<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem">'
+                    f'<div style="background:{bg};border:{border};border-radius:6px;'
+                    f'padding:0.3rem 0.8rem;min-width:80px;text-align:center;'
+                    f'color:{text_color};font-weight:{font_weight};font-size:0.85rem">'
+                    f'{lvl.capitalize()}</div>'
+                    f'<div style="color:{label_color};font-size:0.75rem">'
+                    f'{level_scores[lvl]}–{"100" if lvl == "principal" else str(level_scores[levels[levels.index(lvl)+1]]-1) if levels.index(lvl) < len(levels)-1 else "100"} pts'
+                    f'</div>'
+                    f'</div>'
+                )
+            thermometer_html += '</div>'
+
             st.markdown(
-                f'<div style="text-align:center;padding:2rem 0">'
-                f'<div style="font-size:5rem;font-weight:900;color:'
-                f'{"#00D4AA" if score >= 70 else "#FFB347" if score >= 45 else "#6C63FF"}">'
+                f'<div style="text-align:center;padding:1rem 0">'
+                f'<div style="font-size:4.5rem;font-weight:900;color:{score_color}">'
                 f'{score}</div>'
                 f'<div style="color:#718096;font-size:0.85rem">out of 100</div>'
-                f'<div style="margin-top:1rem">'
-                f'<span class="tag" style="font-size:1rem;padding:0.4rem 1rem">'
-                f'{seniority["level"].capitalize()}</span></div>'
-                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.5rem">'
+                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.3rem">'
                 f'Confidence: {seniority["confidence"]}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
-            st.progress(score / 100)
+            st.markdown(thermometer_html, unsafe_allow_html=True)
 
         with col_detail:
             st.markdown("**Strengths**")
@@ -582,12 +624,21 @@ else:
 
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
-    col_reset, col_time = st.columns([1, 3])
+    col_reset, col_download, col_time = st.columns([1, 1, 2])
     with col_reset:
         if st.button("Analyze Another CV", use_container_width=True):
             st.session_state.result = None
             call_analyze.clear()
             st.rerun()
+    with col_download:
+        import json as _json
+        st.download_button(
+            label="Download Report (JSON)",
+            data=_json.dumps(r, indent=2, ensure_ascii=False),
+            file_name=f"cv_analysis_{cv.get('full_name', 'report').replace(' ', '_')}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
     with col_time:
         proc_time = r.get("processing_time_seconds", 0)
         st.markdown(
