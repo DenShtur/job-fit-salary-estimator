@@ -13,7 +13,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-BASE_URL = "http://localhost:8000"
+import os
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 # ── Стили ────────────────────────────────────────────────────────────────────
 
