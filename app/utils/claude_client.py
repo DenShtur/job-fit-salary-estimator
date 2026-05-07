@@ -67,6 +67,12 @@ def call_claude(
         )
 
         raw = response.content[0].text.strip()
+        # Убираем markdown code block если Claude обернул JSON в ```json ... ```
+        if raw.startswith("```"):
+            raw = raw.split("```", 2)[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
 
         try:
             data = json.loads(raw)
