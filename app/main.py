@@ -63,7 +63,8 @@ async def analyze_cv(
 
     try:
         result = orchestrator.run_pipeline(cv_text, api_key=x_api_key)
-    except ValueError as e:
+    except Exception as e:
+        logger.exception("Pipeline failed")
         raise HTTPException(status_code=500, detail=str(e))
 
     return result
@@ -74,7 +75,7 @@ async def health() -> dict:
     """Статус сервиса."""
     return {
         "status": "ok",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "claude-sonnet-4-5",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

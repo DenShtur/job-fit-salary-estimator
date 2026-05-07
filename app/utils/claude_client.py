@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from typing import TypeVar
 
@@ -13,8 +14,8 @@ load_dotenv()
 
 logger = get_logger(__name__)
 
-MODEL = "claude-3-5-sonnet-20241022"
-MAX_TOKENS = 2048
+MODEL = "claude-sonnet-4-5"
+MAX_TOKENS = 4096
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -56,6 +57,7 @@ def call_claude(
             max_tokens=MAX_TOKENS,
             system=full_system,
             messages=[{"role": "user", "content": user_message}],
+            timeout=60.0,
         )
         elapsed = time.perf_counter() - start
         input_tokens = response.usage.input_tokens
@@ -66,7 +68,7 @@ def call_claude(
             f"| in={input_tokens} out={output_tokens} tokens | {elapsed:.2f}s"
         )
 
-        raw = response.content[0].text.strip()
+        raw = _clean_raw(response.content[0].text.strip())
 
         try:
             data = json.loads(raw)
@@ -77,7 +79,33 @@ def call_claude(
                 continue
             raise ValueError(
                 f"LLM returned invalid JSON for {response_model.__name__} "
-                f"after 2 attempts. Raw response: {raw[:200]}"
+                f"after 2 attempts. Raw response: {raw[:300]}"
             ) from e
 
     raise ValueError("Unreachable")
+
+
+def _clean_raw(raw: str) -> str:
+    """Очищает ответ LLM: убирает markdown обёртку и вырезает JSON по скобкам."""
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    match = re.search(r'\{', raw)
+    if match:
+        start = match.start()
+        depth = 0
+        end = start
+        for i, ch in enumerate(raw[start:], start):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        raw = raw[start:end + 1]
+
+    return raw.strip()
