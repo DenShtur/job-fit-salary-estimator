@@ -70,7 +70,7 @@ class Recommendation(BaseModel):
 
 class GrowthRecommendations(BaseModel):
     target_salary_czk: int = Field(ge=0)
-    recommendations: list[Recommendation] = Field(min_length=3, max_length=5)
+    recommendations: list[Recommendation] = Field(min_length=1, max_length=5)
     narrative: str
     salary_estimate: SalaryEstimate
 

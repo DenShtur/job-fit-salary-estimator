@@ -57,6 +57,7 @@ def call_claude(
             max_tokens=MAX_TOKENS,
             system=full_system,
             messages=[{"role": "user", "content": user_message}],
+            timeout=60.0,
         )
         elapsed = time.perf_counter() - start
         input_tokens = response.usage.input_tokens
@@ -67,8 +68,7 @@ def call_claude(
             f"| in={input_tokens} out={output_tokens} tokens | {elapsed:.2f}s"
         )
 
-        raw = response.content[0].text.strip()
-        raw = _clean_raw(raw)
+        raw = _clean_raw(response.content[0].text.strip())
 
         try:
             data = json.loads(raw)
@@ -86,20 +86,16 @@ def call_claude(
 
 
 def _clean_raw(raw: str) -> str:
-    """Очищает ответ LLM — убирает markdown, вырезает JSON объект."""
-    # Убираем ```json ... ``` обёртку
+    """Очищает ответ LLM: убирает markdown обёртку и вырезает JSON по скобкам."""
     if raw.startswith("```"):
         raw = raw.split("```", 2)[1]
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
 
-    # Вырезаем первый валидный JSON объект из текста
-    # Находим первую { и последнюю совместимую }
     match = re.search(r'\{', raw)
     if match:
         start = match.start()
-        # Идём с конца — ищем закрывающую скобку верхнего уровня
         depth = 0
         end = start
         for i, ch in enumerate(raw[start:], start):

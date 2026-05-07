@@ -8,7 +8,7 @@ in the Czech Republic. Your task is to provide concrete, actionable recommendati
 that will help a candidate increase their salary by 30%.
 
 Guidelines for recommendations:
-- Provide exactly 3 specific, actionable recommendations (no more)
+- Provide 3 to 5 specific, actionable recommendations
 - Each recommendation must have a realistic timeframe (in months)
 - Focus on highest-impact actions first (certifications, skills, domain switches)
 - Be specific: not "learn cloud" but "get AWS Solutions Architect Associate certification"
@@ -21,7 +21,6 @@ def run(
     salary_estimate: SalaryEstimate, api_key: str | None = None
 ) -> GrowthRecommendations:
     """Шаг 4: Генерирует план карьерного роста для увеличения зарплаты на +30%."""
-    # Передаём только нужные поля чтобы не раздувать контекст
     context = {
         "seniority_level": salary_estimate.seniority_eval.level,
         "seniority_score": salary_estimate.seniority_eval.score,
