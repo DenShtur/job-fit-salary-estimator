@@ -1,11 +1,14 @@
+import json
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from app.data.salary_data import CZ_SALARY_RANGES, DOMAIN_MULTIPLIERS, SKILL_MULTIPLIERS
 from app.models.pipeline_models import PipelineResult
 from app.pipeline import orchestrator
+from app.pipeline import step1_extract, step2_seniority, step3_salary, step4_recommendations
 from app.pipeline.cv_parser import extract_text
 from app.utils.logging_config import get_logger, setup_logging
 
@@ -68,6 +71,57 @@ async def analyze_cv(
         raise HTTPException(status_code=500, detail=str(e))
 
     return result
+
+
+@app.post("/analyze/stream")
+async def analyze_cv_stream(
+    file: UploadFile = File(...),
+    x_api_key: str | None = Header(default=None),
+) -> StreamingResponse:
+    """SSE endpoint — отправляет события о каждом шаге pipeline в реальном времени."""
+    filename = file.filename or ""
+    if not (filename.lower().endswith(".pdf") or filename.lower().endswith(".docx")):
+        raise HTTPException(status_code=400, detail="Unsupported file format.")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5 MB.")
+
+    try:
+        cv_text = extract_text(file_bytes, filename)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    def event_stream():
+        import time
+        total_start = time.perf_counter()
+        try:
+            yield f"data: {json.dumps({'step': 1, 'label': 'Extracting CV facts...', 'progress': 10})}\n\n"
+            cv_facts = step1_extract.run(cv_text, x_api_key)
+
+            yield f"data: {json.dumps({'step': 2, 'label': 'Evaluating seniority...', 'progress': 35})}\n\n"
+            seniority = step2_seniority.run(cv_facts, x_api_key)
+
+            yield f"data: {json.dumps({'step': 3, 'label': 'Calculating salary...', 'progress': 60})}\n\n"
+            salary = step3_salary.run(seniority, x_api_key)
+
+            yield f"data: {json.dumps({'step': 4, 'label': 'Generating recommendations...', 'progress': 85})}\n\n"
+            recommendations = step4_recommendations.run(salary, x_api_key)
+
+            total_time = round(time.perf_counter() - total_start, 2)
+            result = PipelineResult(
+                cv_facts=cv_facts,
+                seniority=seniority,
+                salary=salary,
+                recommendations=recommendations,
+                processing_time_seconds=total_time,
+            )
+            yield f"data: {json.dumps({'step': 'done', 'progress': 100, 'result': result.model_dump()})}\n\n"
+        except Exception as e:
+            logger.exception("Stream pipeline failed")
+            yield f"data: {json.dumps({'step': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/health")

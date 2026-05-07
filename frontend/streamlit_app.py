@@ -294,42 +294,89 @@ if st.session_state.result is None:
             file_bytes = uploaded.getvalue()
             fhash = file_hash(file_bytes)
 
-            steps = [
-                "Extracting CV facts...",
-                "Evaluating seniority...",
-                "Calculating salary...",
-                "Generating recommendations...",
-            ]
+            # Проверяем кэш
+            cached = call_analyze.__wrapped__ if hasattr(call_analyze, "__wrapped__") else None
+            cache_key = fhash + (api_key_input or "")
 
             progress_bar = st.progress(0)
             status_box = st.empty()
+            steps_box = st.empty()
+
+            STEP_LABELS = {
+                1: "Extracting CV facts",
+                2: "Evaluating seniority",
+                3: "Calculating salary",
+                4: "Generating recommendations",
+            }
+
+            def render_steps(current: int, done_steps: list[int]) -> str:
+                html = ""
+                for num, label in STEP_LABELS.items():
+                    if num in done_steps:
+                        css = "done"
+                        icon = "✓"
+                    elif num == current:
+                        css = "active"
+                        icon = "⟳"
+                    else:
+                        css = ""
+                        icon = "○"
+                    html += f'<div class="step-item {css}">{icon} Step {num}: {label}</div>'
+                return html
 
             try:
-                for i, step in enumerate(steps):
-                    status_box.markdown(
-                        f'<div class="step-item active">⟳ {step}</div>',
-                        unsafe_allow_html=True,
-                    )
-                    progress_bar.progress((i + 1) * 20)
-                    if i == 0:
-                        # Запускаем реальный вызов на первом шаге
-                        result = call_analyze(
-                            file_bytes,
-                            uploaded.name,
-                            api_key_input or "",
-                            fhash,
-                        )
-                    else:
-                        time.sleep(0.4)  # визуальная анимация шагов
+                headers = {"X-Api-Key": api_key_input} if api_key_input else {}
+                done_steps: list[int] = []
+                result = None
 
-                progress_bar.progress(100)
-                status_box.markdown(
-                    '<div class="step-item done">✓ Analysis complete!</div>',
-                    unsafe_allow_html=True,
-                )
-                time.sleep(0.5)
-                st.session_state.result = result
-                st.rerun()
+                with httpx.Client(timeout=180) as client:
+                    with client.stream(
+                        "POST",
+                        f"{BASE_URL}/analyze/stream",
+                        files={"file": (uploaded.name, file_bytes)},
+                        headers=headers,
+                    ) as response:
+                        response.raise_for_status()
+                        for line in response.iter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            import json as _json
+                            event = _json.loads(line[6:])
+
+                            if event.get("step") == "error":
+                                raise Exception(event.get("message", "Unknown error"))
+
+                            if event.get("step") == "done":
+                                result = event["result"]
+                                progress_bar.progress(100)
+                                steps_box.markdown(
+                                    render_steps(0, list(STEP_LABELS.keys())),
+                                    unsafe_allow_html=True,
+                                )
+                                status_box.markdown(
+                                    '<div class="step-item done">✓ Analysis complete!</div>',
+                                    unsafe_allow_html=True,
+                                )
+                            else:
+                                step_num = event["step"]
+                                progress = event.get("progress", 0)
+                                label = event.get("label", "")
+                                progress_bar.progress(progress)
+                                steps_box.markdown(
+                                    render_steps(step_num, done_steps),
+                                    unsafe_allow_html=True,
+                                )
+                                status_box.markdown(
+                                    f'<div class="step-item active">⟳ {label}</div>',
+                                    unsafe_allow_html=True,
+                                )
+                                if step_num > 1:
+                                    done_steps.append(step_num - 1)
+
+                if result:
+                    # Сохраняем в кэш call_analyze
+                    st.session_state.result = result
+                    st.rerun()
 
             except httpx.HTTPStatusError as e:
                 try:
