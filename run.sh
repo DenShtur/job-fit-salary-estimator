@@ -38,9 +38,12 @@ if [ ! -f ".env" ]; then
 fi
 
 if grep -q "your-key-here" .env 2>/dev/null; then
-    echo -e "${RED}✗  ANTHROPIC_API_KEY is not set in .env${NC}"
-    echo "   Edit .env and insert your real Anthropic API key"
-    exit 1
+    echo -e "${YELLOW}⚠  ANTHROPIC_API_KEY not set in .env — you can enter it in the UI sidebar${NC}"
+fi
+
+API_KEY_VALUE=$(grep "ANTHROPIC_API_KEY" .env 2>/dev/null | cut -d'=' -f2)
+if [ -z "$API_KEY_VALUE" ] || echo "$API_KEY_VALUE" | grep -q "your-key-here"; then
+    echo -e "${YELLOW}⚠  No API key in .env — enter it in the UI sidebar after launch${NC}"
 fi
 
 # ── Виртуальное окружение ─────────────────────────────────────────────────────
