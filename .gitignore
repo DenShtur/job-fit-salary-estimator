@@ -28,5 +28,8 @@ env/
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/
+# Streamlit cache (но не конфиг)
+.streamlit/cache/
+
+# Screenshots / design assets
+specs/photo/

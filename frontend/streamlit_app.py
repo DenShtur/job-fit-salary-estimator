@@ -1,5 +1,5 @@
 import hashlib
-import time
+import json as _json
 
 import httpx
 import streamlit as st
@@ -19,12 +19,8 @@ BASE_URL = "http://localhost:8000"
 
 st.markdown("""
 <style>
-/* Основная тема */
-[data-testid="stAppViewContainer"] {
-    background-color: #0F1117;
-}
+/* Sidebar accent border */
 [data-testid="stSidebar"] {
-    background-color: #161B27;
     border-right: 1px solid #2D3748;
 }
 
@@ -64,7 +60,7 @@ st.markdown("""
     color: #FAFAFA;
     line-height: 1;
 }
-.kpi-value.accent { color: #6C63FF; }
+.kpi-value.accent  { color: #6C63FF; }
 .kpi-value.success { color: #00D4AA; }
 .kpi-value.warning { color: #FFB347; }
 
@@ -89,30 +85,54 @@ st.markdown("""
 .rec-card {
     background: #161B27;
     border: 1px solid #2D3748;
-    border-left: 3px solid #6C63FF;
+    border-left: 4px solid #6C63FF;
     border-radius: 8px;
     padding: 1rem 1.2rem;
     margin-bottom: 0.8rem;
+    position: relative;
 }
-.rec-card.high  { border-left-color: #00D4AA; }
+.rec-card.high   { border-left-color: #00D4AA; }
 .rec-card.medium { border-left-color: #FFB347; }
-.rec-card.low   { border-left-color: #718096; }
+.rec-card.low    { border-left-color: #718096; }
 
-.rec-title { color: #FAFAFA; font-weight: 600; font-size: 0.95rem; }
-.rec-meta  { color: #718096; font-size: 0.8rem; margin-top: 0.3rem; }
+.rec-number {
+    position: absolute;
+    top: 0.8rem;
+    right: 1rem;
+    font-size: 1.8rem;
+    font-weight: 900;
+    opacity: 0.08;
+    color: #FAFAFA;
+    line-height: 1;
+}
+.rec-title { color: #FAFAFA; font-weight: 600; font-size: 0.95rem; margin-right: 2rem; }
+.rec-meta  { color: #718096; font-size: 0.8rem; margin-top: 0.4rem; display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
 
 /* Impact badges */
 .badge {
     display: inline-block;
     border-radius: 4px;
-    padding: 0.1rem 0.5rem;
+    padding: 0.15rem 0.55rem;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
-.badge-high   { background: #00D4AA22; color: #00D4AA; }
-.badge-medium { background: #FFB34722; color: #FFB347; }
-.badge-low    { background: #71809622; color: #718096; }
+.badge-high   { background: #00D4AA22; color: #00D4AA; border: 1px solid #00D4AA44; }
+.badge-medium { background: #FFB34722; color: #FFB347; border: 1px solid #FFB34744; }
+.badge-low    { background: #71809622; color: #718096; border: 1px solid #71809644; }
+
+/* Salary gap pill */
+.gap-pill {
+    display: inline-block;
+    border-radius: 20px;
+    padding: 0.3rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.gap-above { background: #00D4AA22; color: #00D4AA; border: 1px solid #00D4AA44; }
+.gap-below { background: #FF6B6B22; color: #FF6B6B; border: 1px solid #FF6B6B44; }
+.gap-at    { background: #6C63FF22; color: #A78BFA;  border: 1px solid #6C63FF44; }
 
 /* Разделитель */
 .divider {
@@ -138,8 +158,31 @@ st.markdown("""
     color: #718096;
     font-size: 0.9rem;
 }
-.step-item.done  { color: #00D4AA; }
+.step-item.done   { color: #00D4AA; }
 .step-item.active { color: #6C63FF; font-weight: 600; }
+
+/* Stat row in CV Summary */
+.stat-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+}
+.stat-big   { font-size: 2.5rem; font-weight: 800; color: #6C63FF; line-height: 1; }
+.stat-unit  { color: #718096; font-size: 0.9rem; }
+
+/* Salary compare row */
+.salary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #2D374844;
+}
+.salary-row:last-child { border-bottom: none; }
+.salary-label { color: #718096; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.salary-you   { color: #FAFAFA; font-size: 1.1rem; font-weight: 700; }
+.salary-market{ color: #A78BFA; font-size: 1.1rem; font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -151,7 +194,7 @@ def file_hash(file_bytes: bytes) -> str:
 
 
 def format_czk(amount: int) -> str:
-    return f"{amount:,}".replace(",", " ") + " CZK"
+    return f"{amount:,}".replace(",", "\u00a0") + " CZK"
 
 
 def get_score_color(score: int) -> str:
@@ -234,7 +277,7 @@ with st.sidebar:
                 f'<div style="display:flex;justify-content:space-between;'
                 f'font-size:0.8rem;padding:0.2rem 0;">'
                 f'<span style="color:#718096;text-transform:capitalize">{level}</span>'
-                f'<span style="color:#A78BFA">{data["median"]:,} CZK</span>'
+                f'<span style="color:#A78BFA">{data["median"]:,}\u00a0CZK</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -244,7 +287,7 @@ with st.sidebar:
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
     st.markdown(
         '<span style="color:#718096;font-size:0.75rem;">Chain of Thought Pipeline<br>'
-        'Powered by Claude 3.5 Sonnet</span>',
+        'Powered by claude-sonnet-4-5</span>',
         unsafe_allow_html=True,
     )
 
@@ -292,11 +335,6 @@ if st.session_state.result is None:
 
         if analyze_clicked:
             file_bytes = uploaded.getvalue()
-            fhash = file_hash(file_bytes)
-
-            # Проверяем кэш
-            cached = call_analyze.__wrapped__ if hasattr(call_analyze, "__wrapped__") else None
-            cache_key = fhash + (api_key_input or "")
 
             progress_bar = st.progress(0)
             status_box = st.empty()
@@ -340,7 +378,6 @@ if st.session_state.result is None:
                         for line in response.iter_lines():
                             if not line.startswith("data: "):
                                 continue
-                            import json as _json
                             event = _json.loads(line[6:])
 
                             if event.get("step") == "error":
@@ -361,6 +398,8 @@ if st.session_state.result is None:
                                 step_num = event["step"]
                                 progress = event.get("progress", 0)
                                 label = event.get("label", "")
+                                # Все предыдущие шаги — завершены
+                                done_steps = list(range(1, step_num))
                                 progress_bar.progress(progress)
                                 steps_box.markdown(
                                     render_steps(step_num, done_steps),
@@ -370,11 +409,8 @@ if st.session_state.result is None:
                                     f'<div class="step-item active">⟳ {label}</div>',
                                     unsafe_allow_html=True,
                                 )
-                                if step_num > 1:
-                                    done_steps.append(step_num - 1)
 
                 if result:
-                    # Сохраняем в кэш call_analyze
                     st.session_state.result = result
                     st.rerun()
 
@@ -399,7 +435,7 @@ else:
     salary = r["salary"]
     recs = r["recommendations"]
 
-    # KPI метрики
+    # ── KPI метрики ───────────────────────────────────────────────────────────
     col1, col2, col3, col4 = st.columns(4)
 
     score_class = get_score_color(seniority["score"])
@@ -408,6 +444,7 @@ else:
             f'<div class="kpi-card">'
             f'<div class="kpi-label">Seniority Score</div>'
             f'<div class="kpi-value {score_class}">{seniority["score"]}</div>'
+            f'<div style="color:#718096;font-size:0.7rem">out of 100</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -416,6 +453,7 @@ else:
             f'<div class="kpi-card">'
             f'<div class="kpi-label">Level</div>'
             f'<div class="kpi-value accent">{seniority["level"].capitalize()}</div>'
+            f'<div style="color:#718096;font-size:0.7rem">confidence: {seniority["confidence"]}</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -443,7 +481,7 @@ else:
 
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
-    # Вкладки
+    # ── Вкладки ───────────────────────────────────────────────────────────────
     tab1, tab2, tab3, tab4 = st.tabs(["CV Summary", "Seniority", "Salary", "Growth Plan"])
 
     # ── Tab 1: CV Summary ─────────────────────────────────────────────────────
@@ -452,24 +490,23 @@ else:
         with col_a:
             st.markdown("**Experience**")
             st.markdown(
-                f'<span style="font-size:2rem;font-weight:700;color:#6C63FF">'
-                f'{cv["total_years_experience"]}</span>'
-                f'<span style="color:#718096"> years</span>',
+                f'<div class="stat-row">'
+                f'<span class="stat-big">{cv["total_years_experience"]}</span>'
+                f'<span class="stat-unit">years total experience</span>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
 
             st.markdown("**Education**")
             edu = cv["education_level"].replace("_", " ").title()
             st.markdown(
-                f'<span class="tag">{edu}</span>',
+                f'<span class="tag" style="font-size:0.9rem;padding:0.3rem 0.8rem">{edu}</span>',
                 unsafe_allow_html=True,
             )
 
-            st.markdown("**Industries**")
-            st.markdown(
-                render_tags(cv["industries"], "tag-soft"),
-                unsafe_allow_html=True,
-            )
+            if cv["industries"]:
+                st.markdown("**Industries**")
+                st.markdown(render_tags(cv["industries"], "tag-soft"), unsafe_allow_html=True)
 
         with col_b:
             st.markdown("**Technical Skills**")
@@ -482,90 +519,154 @@ else:
                 unsafe_allow_html=True,
             )
 
-            st.markdown("**Soft Skills**")
-            st.markdown(
-                render_tags(cv["soft_skills"], "tag-soft"),
-                unsafe_allow_html=True,
-            )
+            if cv["soft_skills"]:
+                st.markdown("**Soft Skills**")
+                st.markdown(render_tags(cv["soft_skills"], "tag-soft"), unsafe_allow_html=True)
 
         if cv["notable_achievements"]:
+            st.markdown("<hr class='divider'>", unsafe_allow_html=True)
             st.markdown("**Notable Achievements**")
             for ach in cv["notable_achievements"]:
-                st.markdown(f"- {ach}")
+                st.markdown(
+                    f'<div style="padding:0.3rem 0;color:#FAFAFA">◆ {ach}</div>',
+                    unsafe_allow_html=True,
+                )
 
     # ── Tab 2: Seniority ──────────────────────────────────────────────────────
     with tab2:
-        col_score, col_detail = st.columns([1, 2])
+        score = seniority["score"]
+        level = seniority["level"]
+        score_color = "#00D4AA" if score >= 70 else "#FFB347" if score >= 45 else "#6C63FF"
 
-        with col_score:
-            score = seniority["score"]
-            level = seniority["level"]
-            score_color = "#00D4AA" if score >= 70 else "#FFB347" if score >= 45 else "#6C63FF"
+        levels_order = ["intern", "junior", "mid", "senior", "lead", "principal"]
+        level_ranges = {
+            "intern":    (10,  29),
+            "junior":    (30,  49),
+            "mid":       (50,  69),
+            "senior":    (70,  84),
+            "lead":      (85,  94),
+            "principal": (95, 100),
+        }
+        current_idx = levels_order.index(level) if level in levels_order else 0
 
-            # Термометр уровней
-            levels = ["intern", "junior", "mid", "senior", "lead", "principal"]
-            level_scores = {"intern": 10, "junior": 30, "mid": 50, "senior": 70, "lead": 85, "principal": 95}
+        # ── Верхняя строка: score + прогресс-бар уровней ──────────────────────
+        col_num, col_ladder = st.columns([1, 3])
 
-            thermometer_html = '<div style="margin:1.5rem 0">'
-            for lvl in reversed(levels):
-                is_active = lvl == level
-                is_passed = level_scores.get(level, 0) > level_scores.get(lvl, 0)
-                if is_active:
-                    bg = score_color
-                    text_color = "#0F1117"
-                    border = f"2px solid {score_color}"
-                    font_weight = "700"
-                    label_color = score_color
-                elif is_passed:
-                    bg = score_color + "33"
-                    text_color = score_color
-                    border = f"1px solid {score_color}55"
-                    font_weight = "400"
-                    label_color = "#718096"
-                else:
-                    bg = "#1E2535"
-                    text_color = "#4A5568"
-                    border = "1px solid #2D3748"
-                    font_weight = "400"
-                    label_color = "#4A5568"
-
-                thermometer_html += (
-                    f'<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.4rem">'
-                    f'<div style="background:{bg};border:{border};border-radius:6px;'
-                    f'padding:0.3rem 0.8rem;min-width:80px;text-align:center;'
-                    f'color:{text_color};font-weight:{font_weight};font-size:0.85rem">'
-                    f'{lvl.capitalize()}</div>'
-                    f'<div style="color:{label_color};font-size:0.75rem">'
-                    f'{level_scores[lvl]}–{"100" if lvl == "principal" else str(level_scores[levels[levels.index(lvl)+1]]-1) if levels.index(lvl) < len(levels)-1 else "100"} pts'
-                    f'</div>'
-                    f'</div>'
-                )
-            thermometer_html += '</div>'
-
+        with col_num:
             st.markdown(
                 f'<div style="text-align:center;padding:1rem 0">'
-                f'<div style="font-size:4.5rem;font-weight:900;color:{score_color}">'
-                f'{score}</div>'
-                f'<div style="color:#718096;font-size:0.85rem">out of 100</div>'
-                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.3rem">'
+                f'<div style="font-size:6rem;font-weight:900;color:{score_color};'
+                f'line-height:1;letter-spacing:-3px">{score}</div>'
+                f'<div style="color:#718096;font-size:0.9rem;margin-top:0.4rem">out of 100</div>'
+                f'<div style="margin-top:0.6rem">'
+                f'<span style="background:{score_color}22;color:{score_color};'
+                f'border:1px solid {score_color}55;border-radius:20px;'
+                f'padding:0.25rem 1rem;font-size:0.85rem;font-weight:700">'
+                f'{level.capitalize()}</span>'
+                f'</div>'
+                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.5rem">'
                 f'Confidence: {seniority["confidence"]}</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
-            st.markdown(thermometer_html, unsafe_allow_html=True)
 
-        with col_detail:
-            st.markdown("**Strengths**")
-            for s in seniority["strengths"]:
+        with col_ladder:
+            # Горизонтальная лесенка уровней
+            ladder_html = '<div style="padding:1.5rem 0 0.5rem">'
+            for i, lvl in enumerate(levels_order):
+                is_active = lvl == level
+                is_passed = i < current_idx
+                lvl_min, lvl_max = level_ranges[lvl]
+
+                if is_active:
+                    bg = score_color
+                    text_col = "#0F1117"
+                    sub_col = "#0F1117"
+                    opacity = "1"
+                    shadow = f"box-shadow:0 0 12px {score_color}55;"
+                elif is_passed:
+                    bg = score_color + "33"
+                    text_col = score_color
+                    sub_col = score_color + "aa"
+                    opacity = "0.9"
+                    shadow = ""
+                else:
+                    bg = "#1E2535"
+                    text_col = "#4A5568"
+                    sub_col = "#4A5568"
+                    opacity = "0.6"
+                    shadow = ""
+
+                ladder_html += (
+                    f'<div style="display:inline-block;vertical-align:bottom;'
+                    f'margin-right:0.5rem;margin-bottom:0.5rem;opacity:{opacity}">'
+                    f'<div style="background:{bg};border-radius:8px;{shadow}'
+                    f'padding:0.5rem 0.9rem;text-align:center;min-width:80px">'
+                    f'<div style="color:{text_col};font-weight:700;font-size:0.85rem">'
+                    f'{lvl.capitalize()}</div>'
+                    f'<div style="color:{sub_col};font-size:0.7rem;margin-top:0.1rem">'
+                    f'{lvl_min}–{lvl_max}</div>'
+                    f'</div>'
+                    f'</div>'
+                )
+            ladder_html += '</div>'
+            st.markdown(ladder_html, unsafe_allow_html=True)
+
+            # Score-bar: визуальная полоска 0–100
+            bar_pct = min(score, 100)
+            st.markdown(
+                f'<div style="background:#1E2535;border-radius:4px;height:8px;'
+                f'margin-bottom:0.3rem;overflow:hidden">'
+                f'<div style="width:{bar_pct}%;height:100%;background:{score_color};'
+                f'border-radius:4px;transition:width 0.5s ease"></div>'
+                f'</div>'
+                f'<div style="display:flex;justify-content:space-between;'
+                f'color:#4A5568;font-size:0.7rem"><span>0</span><span>100</span></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+
+        # ── Нижняя строка: Strengths | Areas to Improve ───────────────────────
+        col_str, col_weak = st.columns(2)
+
+        with col_str:
+            strengths = seniority.get("strengths", [])
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem">'
+                f'<span style="background:#00D4AA22;color:#00D4AA;border:1px solid #00D4AA44;'
+                f'border-radius:4px;padding:0.15rem 0.5rem;font-size:0.75rem;font-weight:700">'
+                f'✓ {len(strengths)}</span>'
+                f'<span style="font-weight:700;color:#FAFAFA">Strengths</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            for s in strengths:
                 st.markdown(
-                    f'<div style="color:#00D4AA;padding:0.2rem 0">✓ {s}</div>',
+                    f'<div style="background:#00D4AA0D;border-left:3px solid #00D4AA;'
+                    f'border-radius:0 6px 6px 0;padding:0.5rem 0.8rem;'
+                    f'margin-bottom:0.4rem;color:#E2E8F0;font-size:0.88rem">'
+                    f'{s}</div>',
                     unsafe_allow_html=True,
                 )
 
-            st.markdown("**Areas to Improve**")
-            for w in seniority["weaknesses"]:
+        with col_weak:
+            weaknesses = seniority.get("weaknesses", [])
+            st.markdown(
+                f'<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.8rem">'
+                f'<span style="background:#FFB34722;color:#FFB347;border:1px solid #FFB34744;'
+                f'border-radius:4px;padding:0.15rem 0.5rem;font-size:0.75rem;font-weight:700">'
+                f'△ {len(weaknesses)}</span>'
+                f'<span style="font-weight:700;color:#FAFAFA">Areas to Improve</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            for w in weaknesses:
                 st.markdown(
-                    f'<div style="color:#FFB347;padding:0.2rem 0">△ {w}</div>',
+                    f'<div style="background:#FFB3470D;border-left:3px solid #FFB347;'
+                    f'border-radius:0 6px 6px 0;padding:0.5rem 0.8rem;'
+                    f'margin-bottom:0.4rem;color:#E2E8F0;font-size:0.88rem">'
+                    f'{w}</div>',
                     unsafe_allow_html=True,
                 )
 
@@ -577,51 +678,78 @@ else:
         est = salary["estimated_range"]
         market = salary["market_range_for_level"]
 
-        col_chart, col_info = st.columns([2, 1])
+        # Salary gap indicator
+        gap_pct = round((est["median_czk"] - market["median_czk"]) / market["median_czk"] * 100, 1)
+        if gap_pct > 2:
+            gap_class = "gap-above"
+            gap_text = f"▲ {gap_pct:+.1f}% above market median"
+        elif gap_pct < -2:
+            gap_class = "gap-below"
+            gap_text = f"▼ {gap_pct:.1f}% below market median"
+        else:
+            gap_class = "gap-at"
+            gap_text = "≈ At market median"
+
+        st.markdown(
+            f'<div style="margin-bottom:1.2rem">'
+            f'<span class="gap-pill {gap_class}">{gap_text}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        col_compare, col_chart = st.columns([1, 2])
+
+        with col_compare:
+            st.markdown("**Min / Median / Max**")
+            rows = [
+                ("Min",    est["min_czk"],    market["min_czk"]),
+                ("Median", est["median_czk"], market["median_czk"]),
+                ("Max",    est["max_czk"],    market["max_czk"]),
+            ]
+            header = (
+                '<div class="salary-row">'
+                '<span class="salary-label" style="flex:1"></span>'
+                '<span class="salary-you" style="font-size:0.75rem;color:#A78BFA;margin-right:1rem">You</span>'
+                '<span class="salary-market" style="font-size:0.75rem;color:#6C63FF">Market</span>'
+                '</div>'
+            )
+            st.markdown(header, unsafe_allow_html=True)
+            for label, you_val, mkt_val in rows:
+                st.markdown(
+                    f'<div class="salary-row">'
+                    f'<span class="salary-label" style="flex:1">{label}</span>'
+                    f'<span class="salary-you" style="margin-right:1rem">{you_val // 1000}k</span>'
+                    f'<span class="salary-market">{mkt_val // 1000}k</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown(
+                f'<div style="margin-top:1rem;padding-top:0.8rem;border-top:1px solid #2D3748">'
+                f'<div style="color:#718096;font-size:0.75rem;text-transform:uppercase;'
+                f'letter-spacing:0.05em">Market Fit Score</div>'
+                f'<div style="font-size:2rem;font-weight:800;color:#6C63FF;margin-top:0.2rem">'
+                f'{salary["fit_score"]}<span style="font-size:1rem;color:#718096">/100</span></div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
         with col_chart:
             st.markdown("**Your Range vs Market**")
-            chart_data = {
-                "You (min)": est["min_czk"],
-                "You (median)": est["median_czk"],
-                "You (max)": est["max_czk"],
-                "Market (min)": market["min_czk"],
-                "Market (median)": market["median_czk"],
-                "Market (max)": market["max_czk"],
-            }
-            st.bar_chart(chart_data, color="#6C63FF")
+            import pandas as pd
+            chart_df = pd.DataFrame({
+                "You":    [est["min_czk"],    est["median_czk"],    est["max_czk"]],
+                "Market": [market["min_czk"], market["median_czk"], market["max_czk"]],
+            }, index=["Min", "Median", "Max"])
+            st.bar_chart(chart_df, color=["#00D4AA", "#6C63FF"])
 
-        with col_info:
-            st.markdown("**Your Estimate**")
+        if salary["top_skills_driving_salary"]:
+            st.markdown("<hr class='divider'>", unsafe_allow_html=True)
+            st.markdown("**Top skills driving your salary**")
             st.markdown(
-                f'<div style="padding:0.8rem 0">'
-                f'<div style="color:#718096;font-size:0.75rem">MIN</div>'
-                f'<div style="font-size:1.3rem;font-weight:700;color:#FAFAFA">'
-                f'{format_czk(est["min_czk"])}</div>'
-                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.5rem">MEDIAN</div>'
-                f'<div style="font-size:1.3rem;font-weight:700;color:#00D4AA">'
-                f'{format_czk(est["median_czk"])}</div>'
-                f'<div style="color:#718096;font-size:0.75rem;margin-top:0.5rem">MAX</div>'
-                f'<div style="font-size:1.3rem;font-weight:700;color:#FAFAFA">'
-                f'{format_czk(est["max_czk"])}</div>'
-                f'</div>',
+                render_tags(salary["top_skills_driving_salary"]),
                 unsafe_allow_html=True,
             )
-
-            st.markdown(
-                f'<div style="margin-top:1rem">'
-                f'<div style="color:#718096;font-size:0.75rem">MARKET FIT SCORE</div>'
-                f'<div style="font-size:1.8rem;font-weight:700;color:#6C63FF">'
-                f'{salary["fit_score"]}/100</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("**Top skills driving your salary**")
-        st.markdown(
-            render_tags(salary["top_skills_driving_salary"]),
-            unsafe_allow_html=True,
-        )
 
         with st.expander("Salary reasoning"):
             st.write(salary["salary_reasoning"])
@@ -652,15 +780,16 @@ else:
         st.markdown("<hr class='divider'>", unsafe_allow_html=True)
         st.markdown("**Recommendations**")
 
-        for rec in recs["recommendations"]:
+        for i, rec in enumerate(recs["recommendations"], 1):
             impact = rec["impact"]
             st.markdown(
                 f'<div class="rec-card {impact}">'
+                f'<div class="rec-number">{i}</div>'
                 f'<div class="rec-title">{rec["action"]}</div>'
                 f'<div class="rec-meta">'
-                f'{impact_badge(impact)} &nbsp;'
-                f'⏱ {rec["timeframe_months"]} months &nbsp;'
-                f'📈 +{rec["expected_salary_increase_pct"]}%'
+                f'{impact_badge(impact)}'
+                f'<span>⏱ {rec["timeframe_months"]} months</span>'
+                f'<span style="color:#00D4AA">📈 +{rec["expected_salary_increase_pct"]}%</span>'
                 f'</div>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -669,6 +798,7 @@ else:
         with st.expander("Full growth narrative"):
             st.write(recs["narrative"])
 
+    # ── Нижняя панель ─────────────────────────────────────────────────────────
     st.markdown("<hr class='divider'>", unsafe_allow_html=True)
 
     col_reset, col_download, col_time = st.columns([1, 1, 2])
@@ -678,7 +808,6 @@ else:
             call_analyze.clear()
             st.rerun()
     with col_download:
-        import json as _json
         st.download_button(
             label="Download Report (JSON)",
             data=_json.dumps(r, indent=2, ensure_ascii=False),
