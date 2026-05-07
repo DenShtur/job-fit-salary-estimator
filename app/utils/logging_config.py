@@ -1,0 +1,18 @@
+import logging
+import sys
+
+
+def setup_logging(level: int = logging.INFO) -> None:
+    """Настраивает structured logging для всего приложения."""
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    )
+    root = logging.getLogger()
+    root.setLevel(level)
+    if not root.handlers:
+        root.addHandler(handler)
+
+
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)
