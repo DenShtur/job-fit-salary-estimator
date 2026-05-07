@@ -13,7 +13,7 @@ load_dotenv()
 
 logger = get_logger(__name__)
 
-MODEL = "claude-3-5-sonnet-20241022"
+MODEL = "claude-sonnet-4-5"
 MAX_TOKENS = 2048
 T = TypeVar("T", bound=BaseModel)
 
