@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from typing import TypeVar
 
@@ -67,12 +68,7 @@ def call_claude(
         )
 
         raw = response.content[0].text.strip()
-        # Убираем markdown code block если Claude обернул JSON в ```json ... ```
-        if raw.startswith("```"):
-            raw = raw.split("```", 2)[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+        raw = _clean_raw(raw)
 
         try:
             data = json.loads(raw)
@@ -83,7 +79,37 @@ def call_claude(
                 continue
             raise ValueError(
                 f"LLM returned invalid JSON for {response_model.__name__} "
-                f"after 2 attempts. Raw response: {raw[:200]}"
+                f"after 2 attempts. Raw response: {raw[:300]}"
             ) from e
 
     raise ValueError("Unreachable")
+
+
+def _clean_raw(raw: str) -> str:
+    """Очищает ответ LLM — убирает markdown, вырезает JSON объект."""
+    # Убираем ```json ... ``` обёртку
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    # Вырезаем первый валидный JSON объект из текста
+    # Находим первую { и последнюю совместимую }
+    match = re.search(r'\{', raw)
+    if match:
+        start = match.start()
+        # Идём с конца — ищем закрывающую скобку верхнего уровня
+        depth = 0
+        end = start
+        for i, ch in enumerate(raw[start:], start):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        raw = raw[start:end + 1]
+
+    return raw.strip()
